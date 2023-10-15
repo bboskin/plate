@@ -1,0 +1,49 @@
+PLATE
+
+Language Overview:
+  -- Strongly (polymorphic) Typed language with some added logical features
+
+    -- guarantee termination
+    -- prove properties of Functions
+
+  -- Concurrency w/ special type (Plate) for objects shared between threads
+
+  -- pattern matching
+  -- macros
+
+  -- General Syntax idea:
+     -- new lines separate expressions/sequence
+     -- { } group if-blocks
+     -- Functions are c-style: func(args ...) but can be curried
+     -- no semicolons, indentation doesn't matter
+
+Program Value Types:
+- Basic Types (pass by value)
+  - Rational Numbers, with subtypes
+  - boolean
+  - string
+  - list [ type ]
+  - lambda [type, type ]
+  - maybe [ type ]
+
+Concurrent Type (pass by reference)
+  - Plate (n-dimensional array)
+
+Process Types:
+  - Functions
+  - parallel Functions
+
+- Proof Types
+  - For All (name TBD)
+  - Exists  (name TBD)
+  - =       (name TBD) (Equality, used to prove properties)
+  - =*      (name TBD) (quality on concurrent type)
+
+
+
+LATER TODOS:
+- Relations
+- User Defined Types
+  -- enums
+  -- structs
+- Compiled, not interpreted

@@ -1,0 +1,18 @@
+First Things:
+ - Write parallel mergesort using multiprocessing
+ - Figure out how we want to write this in Plate
+ 
+ - typechecking, parsing and evaluation to execute this Program
+
+Second Things:
+ - write insertion sort in L
+ - Figure out how we want to prove that msort and isort are = in Plate
+ - implement type system to allow this
+
+
+Third Things:
+
+
+Fourth Things:
+  - VS Code extension for syntax highlighting :)
+

@@ -1,0 +1,29 @@
+Nat = 0,1,2,...
+Int = -1, -2, .... | Nat
+Rational = Int / Int
+String = "..."
+List = [ <Expr> ... ]
+Boolean = true | false
+Maybe = nothing | just <Expr>
+
+Expr = 
+  Nat | Int | Rational | String | List | Boolean | Maybe | 
+  <Expr> + <Expr> | <Expr> - <Expr> | <Expr> * <Expr> | <Expr> % <Expr> | <Expr> / <Expr> | 
+  <Expr> in <Expr> | <Expr> and <Expr> | <Expr> or <Expr> | not <Expr> |
+
+  let <name> : <type> be <Expr> in: <Expr> |
+  if <Expr> then <Expr> else <Expr> |
+
+Type =
+  Absurd | Rational | Int | Nat | String | Boolean |
+  List[<Type>] | Maybe[<Type>] | [<name> : <Type>] -> <Type> |
+  Universe[Nat] | Equal[<Type> <Expr> <Expr>] | Exists[<name> : <Type> s.t. <Type>]
+
+Definition =
+  defunc <name> <Type> : <Expr> |
+  defconst <name> <Type> : <Expr>
+
+
+Phrase = Definition | Expression
+
+File = Phrase ...
