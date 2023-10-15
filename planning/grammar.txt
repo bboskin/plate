@@ -26,12 +26,12 @@ Expr =
 
 Type =
   Absurd | Rational | Int | Nat | String | Boolean |
-  List[<Type>] | Maybe[<Type>] | <Id> -> <Type> |
-  Universe[Nat] | Equal[<Type> <Expr> <Expr>] | Exists <Id> s.t. <Type> | Forall <Id> : <Type>
+  List <Type> | Maybe <Type> | <Id> -> <Type> |
+  Universe[Nat] | Equal <Type> <Expr> <Expr> | Exists <Id> : <Type> | Forall <Id> :  <Type>
 
 Definition =
   defunc <name> <Type> : <Expr> |
-  defconst <name> <Type> : <Expr> |
+  defconst <id> : <Expr> |
   defrel <name> 
 
 

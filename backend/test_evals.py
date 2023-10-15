@@ -1,6 +1,8 @@
-from evaluating import Interpreter
-from defs import *
-
+try:
+   from lib import *
+except:
+   from .lib import *
+   
 i = Interpreter()
 
 
@@ -35,21 +37,17 @@ assert i.eval(exp8) == 0
 
 ## Let
 
-exp10 = Let("x", TBoolean(), Literal(False, TBoolean()), Variable("x", TBoolean()))
+exp10 = Let(Variable("x", TBoolean()), Literal(False, TBoolean()), Variable("x", TBoolean()))
 assert i.eval(exp10) == False
-exp11 = Let("x", TBoolean(), Literal(False, TBoolean()), 
+exp11 = Let(Variable("x", TBoolean()), Literal(False, TBoolean()), 
            Or(Variable("x", TBoolean()), 
               Literal(True, TBoolean())))
 assert i.eval(exp11) == True
 
 ## Closures
 
-exp21 = Application(Lambda("x", TRational(), Plus(Literal(3, TInt()), Variable("x", TRational()))),
-                    Let("y", TInt(), Literal(-1, TInt()), Plus(Variable("y", TInt()), Literal(4, TNat()))))
+exp21 = Application(Lambda(Variable("x", TRational()), Plus(Literal(3, TInt()), Variable("x", TRational()))),
+                    Let(Variable("y", TInt()), Literal(-1, TInt()), Plus(Variable("y", TInt()), Literal(4, TNat()))))
 
 assert i.eval(exp21) == 6
 
-
-print([(e.name, e.value) for e in AllKeywords])
-
-AllKeywords.AND

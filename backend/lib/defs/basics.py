@@ -17,22 +17,19 @@ class AbsurdError(Exception):
 ## Types, Values, and Expressions parent class
 ##############################################
 
-class Type():
-    def __init__(self):
-        pass
-    @classmethod
-    def __eq__(self, v1, v2):
-        raise v1 == v2
 
 class Value():
-    def __init__(self, v, ty : Type):
+    def __init__(self, v, ty):
         self.value = v
         self.type : Type = ty
 
 class Expr():
-    def __init__(self, type : Type):
+    def __init__(self, type):
         self.type : Type = type
 
+class Type(Expr):
+    def __init__(self):
+        pass
 
 ############################
 ## Environments

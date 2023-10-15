@@ -6,7 +6,7 @@ LITERALS = ['nothing', 'true', 'false']
 PREFIX = ['not', 'let', 'if', 'lambda', 'print', 'return', 'just', 'car', 'cdr', 'length']
 
 ## Types
-TYPES = ['Absurd', 'Rational', 'Int', 'Nat', 'String', 'Boolean',
+TYPES = ['Absurd', 'Rational', 'Int', 'Nat', 'String', 'Boolean', 'Bool',
          'Maybe', 'List',
          'Universe', 'Equal', 'Exists', 'Forall']
 

@@ -1,4 +1,4 @@
-from defs import *
+from ..defs import *
 
 class Interpreter():
     def __init__(self):

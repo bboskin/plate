@@ -43,31 +43,10 @@ class TList(Type):
     def __init__(self, type):
         self.contents : Type = type
 
-    @classmethod
-    def __eq__(self, v1, v2):
-        if len(v1) != len(v2):
-            return False
-        else:
-            cmp = self.contents.__eq__
-            for i in range(len(v1)):
-                if not cmp(v1[i], v2[i]):
-                    return False
-            return True
-        
-
 class TMaybe(Type):
     def __init__(self, type):
         super().__init__(self)
         self.type : Type = type
-    
-    @classmethod
-    def __eq__(self, v1, v2):
-        if v1 and v2:
-            self.type.__eq__(v1, v2)
-        elif not v1 and not v2:
-            return True
-        else:
-            return False
 
 class TFunction(Type):
     def __init__(self, tin : Type, out : Type):
