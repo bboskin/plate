@@ -1,23 +1,16 @@
-import asyncio
-from websockets.sync.client import connect
-import socket
-import watchdog.observers 
-import watchdog.events
 
-from loguru import logger
 import json, time, platform, argparse
 import datetime as dt
 from traceback import format_exc
 
 from multiprocessing import Process, Manager
 
-from source_info import all_sources, source_groups
+
 
 
 import random
 
 NUM_RETRIES = 3
-
 
 
 class SocketClient():

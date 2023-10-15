@@ -1,6 +1,11 @@
-from .basics import *
-from .types import *
-
+try:
+    from .basics import *
+    from .types import *
+    from .expressions import *
+except:
+    from basics import *
+    from types import *
+    from expressions import *
 
 ################################
 ## Basic Types
@@ -43,9 +48,8 @@ class VJust(Value):
 
 ## Used for both Lambdas and ForAlls
 class Closure(Value):
-    def __init__(self, x : str, x_ty : Type, env : Environment, body : Expr):
-        self.var : str = x
-        self.var_type : Type = x_ty
+    def __init__(self, x : Variable, env : Environment, body : Expr):
+        self.var : Variable = x
         self.env : Environment = env
         self.body : Expr = body
 

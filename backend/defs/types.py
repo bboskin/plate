@@ -1,5 +1,7 @@
-from .basics import Type, Expr
-
+try:
+    from .basics import *
+except:
+    from basics import *
 ##########################
 ## Basic Types
 ##########################
@@ -25,6 +27,14 @@ class TNat(TInt):
 class TString(Type):
     pass
     
+def merge_numeric_types(t1, t2):
+    if isinstance(t1, TNat) and isinstance(t2, TNat):
+        return TNat()
+    elif (not isinstance(t1, TRational)) and (not isinstance(t2, TRational)):
+        return TInt()
+    else:
+        return TRational()
+        
 ##########################
 ## Polymorphic Types
 ##########################
@@ -60,20 +70,23 @@ class TMaybe(Type):
             return False
 
 class TFunction(Type):
-    def __init__(self, ins : list[Type], out : Type):
-        if len(ins) == 0:
-            self.input : Type | None = None
-            self.output : Type = out
-        elif len(ins) == 1:
-            self.input = ins[0]
-            self.output = out
-        else:
-            self.input = ins[0]
-            self.output = TFunction(ins[1:], out)
-
+    def __init__(self, tin : Type, out : Type):
+        self.input : Type = tin
+        self.output : Type = out
+    
     @classmethod
     def __eq__(v1, v2):
         return False
+
+def Multi_Arg_Function(ins : list[Type], out : Type) -> TFunction:
+    if len(ins) == 0:
+        raise CompileError
+    elif len(ins) == 1:
+        return TFunction(ins[0], out)
+    else:
+        return TFunction(ins[0], Multi_Arg_Function(ins[1:]))
+
+    
 
 
 ##########################

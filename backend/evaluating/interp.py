@@ -6,16 +6,8 @@ class Interpreter():
 
     def apply_closure(self, rator : Closure, rand : Value):
         env : Environment = rator.env
-        env.extend(rator.var, rator.var_type, rand)
+        env.extend(rator.var.name, rator.var.type, rand)
         return self._eval(rator.body, env)
-
-    def merge_numeric_types(self, t1, t2):
-        if isinstance(t1, TNat) and isinstance(t2, TNat):
-            return TNat()
-        elif isinstance(t1, TRational) or isinstance(t2, TRational):
-            return TRational()
-        else:
-            return TInt()
 
     def eval(self, e : Expr):
         v = self._eval(e, Environment())
@@ -43,16 +35,16 @@ class Interpreter():
 
         ## Environment Extension
         if isinstance(e, Variable):
-            return env.lookup(e.var)
+            return env.lookup(e.name)
         
         if isinstance(e, Let):
             v = self._eval(e.bind, env)
-            env.extend(e.var, e.var_type, v)
+            env.extend(e.var.name, e.var.type, v)
             return self._eval(e.body, env)
         
         ## Functions 
         if isinstance(e, Lambda):
-            return Closure(e.var, e.var_type, env.copy(), e.body)
+            return Closure(e.var, env.copy(), e.body)
 
         if isinstance(e, Application):
             oper = self._eval(e.operator, env)
@@ -85,10 +77,9 @@ class Interpreter():
                 return VBoolean(not b1.value)
             
         if isinstance(e, If):
-            for t, c in e.cases.items():
-                b = self._eval(t, env)
-                if not isinstance(b, VNothing()) and not (isinstance(b, VBoolean) and not b.value):
-                    return self._eval(c, env)
+            b = self._eval(e.test, env)
+            if not isinstance(b, VNothing()) and not (isinstance(b, VBoolean) and not b.value):
+                return self._eval(e.consequent, env)
             return self._eval(e.else_expr, env)
                     
         
@@ -99,7 +90,7 @@ class Interpreter():
             if not (isinstance(n1, VNumber) and isinstance(n2, VNumber)):
                 raise RuntimeError(f"Expected numbers, got {n1}, {n2}")
             else:
-                ty = self.merge_numeric_types(n1.type, n2.type)
+                ty = merge_numeric_types(n1.type, n2.type)
                 return VNumber(n1.value + n2.value, ty)
         if isinstance(e, Times):
             n1 = self._eval(e.e1, env)
@@ -107,7 +98,7 @@ class Interpreter():
             if not (isinstance(n1, VNumber) and isinstance(n2, VNumber)):
                 raise RuntimeError(f"Expected numbers, got {n1}, {n2}")
             else:
-                ty = self.merge_numeric_types(n1.type, n2.type)
+                ty = merge_numeric_types(n1.type, n2.type)
                 return VNumber(n1.value * n2.value, ty)
             
         if isinstance(e, Divide):
@@ -126,8 +117,8 @@ class Interpreter():
             if not (isinstance(n1, VNumber) and isinstance(n2, VNumber)):
                 raise RuntimeError(f"Expected numbers, got {n1}, {n2}")
             else:
-                ty = self.merge_numeric_types(n1.type, n2.type)
-                return VNumber(n1.value / n2.value)
+                ty = merge_numeric_types(n1.type, n2.type)
+                return VNumber(n1.value / n2.value, ty)
 
         ## Strings
         if isinstance(e, Concat):

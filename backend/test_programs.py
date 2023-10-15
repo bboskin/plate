@@ -1,9 +1,6 @@
 from evaluating import Interpreter
 from defs import *
 
-
-
-
 i = Interpreter()
 
 
@@ -52,3 +49,7 @@ exp21 = Application(Lambda("x", TRational(), Plus(Literal(3, TInt()), Variable("
 
 assert i.eval(exp21) == 6
 
+
+print([(e.name, e.value) for e in AllKeywords])
+
+AllKeywords.AND
