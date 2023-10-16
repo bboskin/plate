@@ -22,14 +22,20 @@ class Value():
     def __init__(self, v, ty):
         self.value = v
         self.type : Type = ty
+    def __str__(self):
+        return str(self.value)
 
 class Expr():
     def __init__(self, type):
         self.type : Type = type
+    def __str__(self):
+        return "Expr"
 
 class Type(Expr):
     def __init__(self):
         pass
+    def __str__(self):
+        return "Type"
 
 ############################
 ## Environments

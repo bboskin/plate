@@ -13,6 +13,6 @@ TYPES = ['Absurd', 'Rational', 'Int', 'Nat', 'String', 'Boolean', 'Bool',
 ## definition keywords
 DEFS = ['defunc', 'defrel', 'defconst']
 
-INFIX = ['and', 'or', '+', '-', '*', '/', '%', '==', 'in', ]
+INFIX = ['and', 'or', '+', '-', '*', '/', '%', '==', 'in']
 ## everything together
 AllKeywords = LITERALS + PREFIX + TYPES + DEFS

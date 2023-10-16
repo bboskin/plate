@@ -1,3 +1,6 @@
+from loguru import logger
+from fractions import Fraction
+
 try:
     from ..defs import *
 except:
@@ -13,22 +16,37 @@ class Parser():
         self.line_number = 1
         self.line_index = 1
 
+
+    def eoe(self) -> int:
+        i = len(self.parsing)
+        for c in " ]),":
+            j = self.parsing.find(c)
+            if j > 0:
+                i = min(i, j)
+        return i
+
+
     # find the next token (used when expecting a new Phrase or Expression)
     def next(self) -> str:
         ## todo fix this to manually count whitespace
         self.parsing = self.parsing.strip()
-        i = self.parsing.find(" ")
+        i = self.eoe()
+        
         s = self.parsing[:i]
+        
         if s == "":
             s = self.parsing
-        return s
+        logger.debug(f"Next finds: {i}, {s}")
+        return s.strip()
     
     ## move past the first token
     def skip(self):
-        self.parsing = self.parsing[self.parsing.find(" "):].strip()
+        i = self.eoe()
+        self.parsing = self.parsing[i:].strip()
     
     ## calls helper function depending on keyword type
     def dispatch(self, token : str) -> Expr:
+        logger.debug("calling dispatch")
         if token in LITERALS:
             return self.parse_literal()
         elif token in TYPES:
@@ -41,11 +59,38 @@ class Parser():
     ## parsing literals
     ###################################
 
-    def parse_list(self) -> Expr:
-        raise NotImplementedError
+    def parse_list(self) -> List:
+        logger.debug("calling parse list")
+        bracket = self.parsing[0]
+        if bracket != "[":
+            raise CompileError(f"Expected bracket to start list parsing, found {bracket}")
+        self.parsing = self.parsing[1:].replace(",", " , ")
+        es = []
+
+        while self.parsing[0] != "]":
+            e = self.parse_expr()
+            es.append(e)
+            end = self.parsing.find(']')
+            comma = self.parsing.find(",")
+            if comma < end:
+                
+                self.parsing = self.parsing[comma +1:]
+            else:
+                break
+            
+        self.parsing = self.parsing[self.parsing.find("]")+1:]
+        return List(es)
 
     def parse_string(self) -> Expr:
-        raise NotImplementedError
+        logger.debug("calling parse string")
+        quote = self.parsing[0]
+        if quote != "\"":
+            raise CompileError(f"Expected double quote for string literal, found {quote}")
+        self.parsing = self.parsing[1:]
+        loc = self.parsing.find("\"")
+        word = self.parsing[0:loc]
+        self.parsing = self.parsing[loc+1:]
+        return Literal(word, TString())
 
     def check_num(self, token) -> [bool, float]:
         try:
@@ -55,18 +100,22 @@ class Parser():
         return [True, v]
     
     def parse_number(self, n) -> Expr:
+        logger.debug("calling parse number")
         self.skip()
         n = float(n)
-        if isinstance(n, int):
+        if n % 1 == 0:
+            n = int(n)
             if n > 0:
                 return Literal(n, TNat())
             else:
                 return Literal(n, TInt())
         else:
+            n = Fraction(n)
             return Literal(n, TRational())
 
 
     def parse_literal(self) -> Literal:
+        logger.debug("calling parse literal")
         s = self.next()
         self.skip()
         match s:
@@ -79,6 +128,7 @@ class Parser():
         raise CompileError(f"Unknown Literal: {s}")
 
     def parse_id(self) -> Variable:
+        logger.debug("calling parse id")
         self.parsing = self.parsing.strip()
         if self.parsing[0] != '[':
             raise SyntaxError(f"Expected id to start with '[', found {self.parsing[:10]}")
@@ -86,7 +136,7 @@ class Parser():
         if close < 0:
             raise SyntaxError("Missing closing bracket for id")
         s = self.parsing[1:close]
-        s_parsed = s.replace(" ", "").split[":"]
+        s_parsed = s.replace(" ", "").split(":")
         if len(s_parsed) != 2:
             raise SyntaxError(f"Expected 2 tokens in id, found {s}")
         if s[0] in AllKeywords:
@@ -96,7 +146,9 @@ class Parser():
             type_start = self.parsing.find(":") + 1
             self.parsing = self.parsing[type_start:]
             type = self.parse_type()
+            logger.debug(self.parsing)
             self.parsing = self.parsing[1:]
+            logger.debug(self.parsing)
             return Variable(var, type)
 
 
@@ -105,7 +157,8 @@ class Parser():
     ###########################
 
     def parse_if(self) -> If:
-        k =- self.next()
+        logger.debug("calling parse if")
+        k = self.next()
         if k != "if":
             raise CompileError(f'Expected if, found {k}')
         self.parsing = self.parsing[2:].strip()
@@ -118,10 +171,12 @@ class Parser():
         els = self.next()
         if els != "else":
             raise SyntaxError(f"Expected 'else' in if expression, found {els}")
+        self.skip()
         els : Expr = self.parse_expr()
         return If(test, then, els)
 
     def parse_let(self) -> Let:
+        logger.debug("calling parse let")
         k = self.next()
         if k != "let":
             raise CompileError(f"Expected let, found {k}")
@@ -130,19 +185,23 @@ class Parser():
             id : Variable = self.parse_id()
             eq = self.next()
             if eq != "be":
+                logger.debug(self.parsing)
                 raise SyntaxError(f"Expected 'be' after let identified, found {eq}")
-            self.parsing = self.parsing[self.parsing.find("be") + 1:]
+            self.skip()
+            logger.debug(f"Parsing Bind with: {self.parsing}")
             bind : Expr = self.parse_expr()
-            colon = self.next()
+            logger.debug(bind)
+            in_ = self.next()
+            if in_ != "in:":
+                raise SyntaxError(f"Expected 'in:' after let binding expression, found {in_}")
             
-            if colon != ":":
-                raise SyntaxError(f"Expected ':' after let binding expression, found {colon}")
             self.parsing = self.parsing[self.parsing.find(":")+1:]
             body = self.parse_expr()
 
             return Let(id, bind, body)
         
     def parse_lambda(self) -> Lambda:
+        logger.debug("calling parse lambda")
         l = self.next()
         if l != 'lambda':
             raise CompileError(f"Expected lambda, found {l}")
@@ -157,6 +216,7 @@ class Parser():
         return Lambda(args, body)
 
     def parse_print(self) -> PrintThen:
+        logger.debug("calling parse print")
         p = self.next()
         if p != "print":
             raise CompileError(f"Expected print, found {p}")
@@ -166,6 +226,7 @@ class Parser():
         return PrintThen(msg, body)
             
     def parse_prefix(self, token : str) -> Expr:
+        logger.debug("calling parse prefix")
         match token:
             case "if":
                 return self.parse_if()
@@ -195,6 +256,7 @@ class Parser():
     ##############################
 
     def parse_tlist(self) -> TList:
+        logger.debug("calling parse tlist")
         l = self.next()
         if l != "List":
             raise CompileError(f"Expected 'List' in type, found {l}")
@@ -204,6 +266,7 @@ class Parser():
 
     
     def parse_maybe(self) -> TMaybe:
+        logger.debug("calling parse tmaybe")
         l = self.next()
         if l != "Maybe":
             raise CompileError(f"Expected 'Maybe' in type, found {l}")
@@ -212,6 +275,7 @@ class Parser():
         return TMaybe(t)
     
     def parse_universe(self) -> TUniverse:
+        logger.debug("calling parse universe")
         l = self.next()
         if l != "Universe":
             raise CompileError(f"Expected 'Universe' in type, found {l}")
@@ -220,6 +284,7 @@ class Parser():
         return TUniverse(e)
     
     def parse_equal(self) -> TEqual:
+        logger.debug("calling parse equal")
         l = self.next()
         if l != "Equal":
             raise CompileError(f"Expected 'Equal' in type, found {l}")
@@ -230,6 +295,7 @@ class Parser():
         return TEqual(t, e1, e2)
     
     def parse_exists(self) -> TExists:
+        logger.debug("calling parse exists")
         l = self.next()
         if l != "Exists":
             raise CompileError(f"Expected 'Exists' in type, found {l}")
@@ -239,12 +305,15 @@ class Parser():
         return TExists(x, t)
     
     def parse_function(self) -> TFunction:
+        logger.debug("calling parse function")
         raise NotImplementedError
     
     def parse_forall(self) -> TFunction:
+        logger.debug("calling parse forall")
         raise NotImplementedError
     
     def parse_single_type(self) -> Type:
+        logger.debug("calling parse single type")
         token = self.next()
         match token:
             case "Absurd":
@@ -279,6 +348,7 @@ class Parser():
                 return self.parse_forall()
             
     def parse_type(self) -> Type:
+        logger.debug("calling parse type")
         t : Type = self.parse_single_type()
         op = self.next()
         if op == "->":
@@ -293,6 +363,7 @@ class Parser():
 
 
     def parse_paren(self) -> Expr:
+        logger.debug("calling parse paren")
         if self.parsing[0] != "(":
             raise CompileError(f"Expected to be at open paren, found {self.parsing[:10]}")
         self.parsing = self.parsing[1:]
@@ -301,6 +372,7 @@ class Parser():
         return expr
 
     def join_infix(self, e1 : Expr, op : str, e2 : Expr) -> Expr:
+        logger.debug("calling join infix")
         match op:
             case "and":
                 return And(e1, e2)
@@ -308,6 +380,8 @@ class Parser():
                 return Or(e1, e2)
             case "+":
                 return Plus(e1, e2)
+            case "*":
+                return Times(e1, e2)
             case "-":
                 return Plus(e1, Times(Literal(-1, TInt()), e2))
             case "/":
@@ -316,10 +390,14 @@ class Parser():
                 return Mod(e1, e2)
             case "in":
                 return In(e1, e2)
+            case "==":
+                return Equal(e1, e2)
         raise CompileError(f"Unknown Infix Operator: {op}")
 
     def parse_single_expr(self) -> Expr:
+        logger.debug("calling parse single expr")
         token = self.next()
+        logger.debug(f"TOKEN: {token}")
         if token in AllKeywords:
             return self.dispatch(token)
         elif "\"" == token[0]:
@@ -339,6 +417,7 @@ class Parser():
 
     # it's either a single expression, or two expressions joined by an infix operator
     def parse_expr(self) -> Expr:
+        logger.debug(f"calling parse expression {self.parsing}")
         e = self.parse_single_expr()
         if not e:
             return False
@@ -354,9 +433,11 @@ class Parser():
     ## Top-Level definitions
     ###############################
     def parse_defrel(self):
+        logger.debug("calling parse defrel")
         raise NotImplementedError
     
     def parse_defconst(self):
+        logger.debug("calling parse defconst")
         token = self.next()
         if token != "defconst":
             raise CompileError(f"Expected defconst, found {token}")
@@ -366,6 +447,7 @@ class Parser():
         return Defconst(var, exp)
 
     def parse_defunc(self):
+        logger.debug("calling parse defunc")
         token = self.next()
         if token != "defunc":
             raise CompileError(f"Expected defunc, found {token}")
@@ -387,6 +469,7 @@ class Parser():
         return Defunc(name, ty, exp)
 
     def parse_def(self, token) -> Def:
+        logger.debug("calling parse def")
         match token:
             case 'defunc':
                 return self.parse_defunc()
@@ -397,6 +480,7 @@ class Parser():
         raise CompileError(f"Unknown Definition Keyword: {token}")
 
     def parse_file(self) -> list[Expr]:
+        logger.debug("calling parse file")
         ans = []
         while len(self.parsing) > 0:
             self.parsing = self.parsing.strip()
