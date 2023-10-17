@@ -8,9 +8,9 @@ except:
 
 class Parser():
     def __init__(self, content=""):
-        self.all_content = content
         self.parsing = content
 
+        self.total_chars = len(self.parsing)
         ## to use when we fix next()
         self.char_index = 0
         self.line_number = 1
@@ -18,8 +18,8 @@ class Parser():
 
 
     def eoe(self) -> int:
-        i = len(self.parsing)
-        for c in " ]),":
+        i = self.total_chars
+        for c in DELIMS:
             j = self.parsing.find(c)
             if j > 0:
                 i = min(i, j)
@@ -29,6 +29,7 @@ class Parser():
     # find the next token (used when expecting a new Phrase or Expression)
     def next(self) -> str:
         ## todo fix this to manually count whitespace
+        
         self.parsing = self.parsing.strip()
         i = self.eoe()
         
@@ -36,7 +37,7 @@ class Parser():
         
         if s == "":
             s = self.parsing
-        logger.debug(f"Next finds: {i}, {s}")
+        logger.debug(f"Next finds: {s}")
         return s.strip()
     
     ## move past the first token
@@ -132,24 +133,22 @@ class Parser():
         self.parsing = self.parsing.strip()
         if self.parsing[0] != '[':
             raise SyntaxError(f"Expected id to start with '[', found {self.parsing[:10]}")
-        close = self.parsing.find(']')
-        if close < 0:
-            raise SyntaxError("Missing closing bracket for id")
-        s = self.parsing[1:close]
-        s_parsed = s.replace(" ", "").split(":")
-        if len(s_parsed) != 2:
-            raise SyntaxError(f"Expected 2 tokens in id, found {s}")
-        if s[0] in AllKeywords:
-            raise SyntaxError(f"Keyword cannot be used for variable name")
-        else:
-            var = s[0]
-            type_start = self.parsing.find(":") + 1
-            self.parsing = self.parsing[type_start:]
-            type = self.parse_type()
-            logger.debug(self.parsing)
-            self.parsing = self.parsing[1:]
-            logger.debug(self.parsing)
-            return Variable(var, type)
+        
+        self.parsing = self.parsing[1:]
+        var = self.next()
+        if var in AllKeywords:
+            raise SyntaxError(f"Keyword cannot be used in id: {var}")
+        self.skip()
+        close = self.parsing.find("]")
+        colon = self.parsing.find(":")
+        if close < colon:
+            raise SyntaxError(f"Expected : before type in ID, found {self.parsing[:20]}")
+        self.parsing = self.parsing[colon+1:]
+        logger.debug(self.parsing)
+        ty = self.parse_type()
+        close = self.parsing.find("]")
+        self.parsing = self.parsing[close+1:]
+        return Variable(var, ty)
 
 
     ###########################
@@ -177,23 +176,26 @@ class Parser():
 
     def parse_let(self) -> Let:
         logger.debug("calling parse let")
+        logger.debug(self.parsing)
         k = self.next()
         if k != "let":
             raise CompileError(f"Expected let, found {k}")
         else:
-            self.parsing = self.parsing[3:].strip()
+            self.skip()
+            logger.debug(self.parsing)
             id : Variable = self.parse_id()
+            logger.debug(self.parsing)
             eq = self.next()
             if eq != "be":
                 logger.debug(self.parsing)
-                raise SyntaxError(f"Expected 'be' after let identified, found {eq}")
+                raise SyntaxError(f"Expected 'be' after let identifier, found {eq}")
             self.skip()
             logger.debug(f"Parsing Bind with: {self.parsing}")
             bind : Expr = self.parse_expr()
             logger.debug(bind)
             in_ = self.next()
-            if in_ != "in:":
-                raise SyntaxError(f"Expected 'in:' after let binding expression, found {in_}")
+            if in_ != "in":
+                raise SyntaxError(f"Expected 'in' after let binding expression, found {in_}")
             
             self.parsing = self.parsing[self.parsing.find(":")+1:]
             body = self.parse_expr()
@@ -210,8 +212,13 @@ class Parser():
         while self.next() != ":":
             id = self.parse_id()
             args.append(id)
+        logger.debug([str(arg) for arg in args])
         if len(args) == 0:
             raise SyntaxError(f"Expected at least one argument for lambda, got none")
+        colon = self.next()
+        if colon != ":":
+            raise SyntaxError(f"Expected a colon before lambda body, found {colon}")
+        self.skip()
         body = self.parse_expr()
         return Lambda(args, body)
 
@@ -315,6 +322,14 @@ class Parser():
     def parse_single_type(self) -> Type:
         logger.debug("calling parse single type")
         token = self.next()
+        if token[0] == "[":
+            id = self.parse_id()
+            arrow = self.next()
+            if arrow != "->":
+                raise SyntaxError(f"Expected -> after id while parsing type, found {arrow}")
+            self.skip()
+            e2 = self.parse_type()
+            return TFunction(id, e2)
         match token:
             case "Absurd":
                 self.skip()
@@ -351,6 +366,11 @@ class Parser():
         logger.debug("calling parse type")
         t : Type = self.parse_single_type()
         op = self.next()
+        if op[0] == "(":
+            self.parsing = self.parsing[1:]
+            t = self.parse_type()
+            self.parsing = self.parsing[self.parsing.find(")")+1:]
+            return t
         if op == "->":
             self.skip()
             t2 : Expr = self.parse_type()
@@ -360,8 +380,18 @@ class Parser():
     ###########################
     ## General-Case parsing
     ###########################
-
-
+    def parse_app(self, f : Expr) -> Expr:
+        a = False
+        while self.next() != ")":
+            a = self.parse_expr()
+            f = Application(f, a)
+            self.parsing = self.parsing.strip()
+        
+        if isinstance(a, bool):
+            raise SyntaxError()
+        self.parsing = self.parsing[1:]
+        return f
+    
     def parse_paren(self) -> Expr:
         logger.debug("calling parse paren")
         if self.parsing[0] != "(":
@@ -388,8 +418,8 @@ class Parser():
                 return Divide(e1, e2)
             case "%":
                 return Mod(e1, e2)
-            case "in":
-                return In(e1, e2)
+            case "contains":
+                return Contains(e1, e2)
             case "==":
                 return Equal(e1, e2)
         raise CompileError(f"Unknown Infix Operator: {op}")
@@ -406,11 +436,22 @@ class Parser():
             return self.parse_paren()
         elif "[" == token[0]:
             return self.parse_list()
+        elif "(" == token[-1]:
+            f = token[:-1]
+            self.parsing = self.parsing[self.parsing.find("(")+1:]
+            return self.parse_app(f)
         else:
             is_num = self.check_num(token)
             if is_num[0]:
                 return self.parse_number(is_num[1])
             else:
+                if "(" in token:
+                    loc = token.find("(")
+                    f = Variable(token[:loc], TFunction())
+                    self.parsing = self.parsing[loc+1:]
+                    return self.parse_app(f)
+                if not valid_variable_name(token):
+                    raise SyntaxError(f"Invalid variable name: {token}")
                 self.skip()
                 return Variable(token)
     
@@ -468,8 +509,9 @@ class Parser():
         exp : Expr = self.parse_expr()
         return Defunc(name, ty, exp)
 
-    def parse_def(self, token) -> Def:
+    def parse_def(self) -> Def:
         logger.debug("calling parse def")
+        token = self.next()
         match token:
             case 'defunc':
                 return self.parse_defunc()
@@ -486,7 +528,7 @@ class Parser():
             self.parsing = self.parsing.strip()
             t = self.next()
             if t in DEFS:
-                ans.append(self.parse_def(t))
+                ans.append(self.parse_def())
             ans.append(self.parse_expr())
             self.parsing = self.parsing.strip()
         return []

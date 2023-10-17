@@ -13,6 +13,26 @@ TYPES = ['Absurd', 'Rational', 'Int', 'Nat', 'String', 'Boolean', 'Bool',
 ## definition keywords
 DEFS = ['defunc', 'defrel', 'defconst']
 
-INFIX = ['and', 'or', '+', '-', '*', '/', '%', '==', 'in']
+INFIX = ['and', 'or', '+', '-', '*', '/', '%', '==', 'contains']
 ## everything together
 AllKeywords = LITERALS + PREFIX + TYPES + DEFS
+
+DELIMS = " ]),:"
+
+LETTERS = "abcdefghijklmnopqrstuvwxyz" 
+NUMBERS = "01233456789"
+SYMBOLS = "-_~"
+VARCHARS = LETTERS + NUMBERS + SYMBOLS
+
+def valid_variable_name(x : str):
+    if len(x) == 0:
+        return False
+    if x in AllKeywords:
+        return False
+    if x[0] not in LETTERS:
+        return False
+    else:
+        for c in x:
+            if x not in VARCHARS:
+                return False
+        return True

@@ -49,15 +49,18 @@ class TMaybe(Type):
         self.type : Type = type
 
 class TFunction(Type):
-    def __init__(self, tin : Type, out : Type):
-        self.input : Type = tin
+    def __init__(self, tin : Variable=Type, out : Type=Type):
+        self.input : Variable = tin
         self.output : Type = out
     
+    def __str__(self):
+        return f"[{self.input} -> {self.output}]"
+
     @classmethod
     def __eq__(v1, v2):
         return False
 
-def Multi_Arg_Function(ins : list[Type], out : Type) -> TFunction:
+def Multi_Arg_Function(ins : list[Variable], out : Type) -> TFunction:
     if len(ins) == 0:
         raise CompileError
     elif len(ins) == 1:
@@ -94,9 +97,8 @@ class TExists(Type):
         self.prop = p
 
 class TForAll(Type):
-    def __init__(self, x : str, x_ty : Type, p : Type):
-        self.var = x
-        self.var_type = x_ty
+    def __init__(self, var : Variable, p : Type):
+        self.var : Variable = var
         self.prop = p
 
 class TAbsurd(Type):

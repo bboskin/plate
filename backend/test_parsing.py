@@ -6,28 +6,63 @@ try:
 except:
     from lib import *
 
+logger.remove()
 # logger.add(sys.stdout, level="DEBUG")
 
 s1 = '"hello"'
 p = Parser(s1)
-print(p.parse_expr())
+s1 = p.parse_expr()
+assert str(s1) == "(Literal hello)"
 
 s2 = "[1,  2,    3  ]"
 p.parsing = s2
-print(p.parse_expr())
+s2 = p.parse_expr()
+assert str(s2) == "(List: [(Literal 1),(Literal 2),(Literal 3)])"
 
 s3 = "let [x : Nat] be 3 in: x"
 p.parsing = s3
-print(p.parse_expr())
+s3 = p.parse_expr()
+assert str(s3) == "(let (Var x) be (Literal 3) in (Var x))"
+
 
 s4 = 'let [x : Int] be -1 in: let [x : Nat] be 0 in: [x + y, "hello world"]'
 p.parsing = s4
-print(p.parse_expr())
+s4 = p.parse_expr()
+assert str(s4) == "(let (Var x) be (Literal -1) in (let (Var x) be (Literal 0) in (List: [((Var x) + (Var y)),(Literal hello world)])))"
 
 s5 = '(1 + 3) % 2'
 p.parsing=s5
-print(p.parse_expr())
+s5 = p.parse_expr()
+assert str(s5) == "(((Literal 1) + (Literal 3)) % (Literal 2))"
 
-s6 = 'if (1 == 2) then let [x : Nat] be (1 * 0) in: 4 % x else false'
+s6 = 'if (1 == 2) then let [x : Nat] be (     1 *     0) in:      4 % x else false'
 p.parsing = s6
-print(p.parse_expr())
+s6 = p.parse_expr()
+assert str(s6) == "(if ((Literal 1) == (Literal 2)) then (let (Var x) be ((Literal 1) * (Literal 0)) in ((Literal 4) % (Var x))) else (Literal False))"
+
+
+s7 = 'if (1 == 2) then let [   x : Nat] be (     1 *     0) in:      4 % x else false'
+p.parsing = s7
+s7 = p.parse_expr()
+assert str(s7) == "(if ((Literal 1) == (Literal 2)) then (let (Var x) be ((Literal 1) * (Literal 0)) in ((Literal 4) % (Var x))) else (Literal False))"
+
+
+s8 = 'let [f : Nat -> Nat] be lambda [x : Nat] : 1 in: 5'
+p.parsing = s8
+s8 = p.parse_expr()
+assert str(s8) == "(let (Var f) be (lambda (Var x) : (Literal 1)) in (Literal 5))"
+
+
+
+s9 = 'let [f : ([a : Nat] -> Nat)] be lambda [x : Nat] : (x + y) in: f(2)'
+p.parsing = s9
+s9 = p.parse_expr()
+assert str(s9) == "(let (Var f) be (lambda (Var x) : ((Var x) + (Var y))) in (Var f)((Literal 2)))"
+
+
+s10 = 'defunc foo : [x : Nat] -> Nat: x + 1'
+p.parsing = s10
+s10 = p.parse_def()
+assert str(s10) == '(defunc foo : [(Var x) -> Type]: ((Var x) + (Literal 1)))'
+
+logger.add(sys.stdout, level="DEBUG")

@@ -36,6 +36,13 @@ class Type(Expr):
         pass
     def __str__(self):
         return "Type"
+    
+class Variable(Expr):
+    def __init__(self, v : str, t : Type=Type()):
+        self.name = v
+        self.type = t
+    def __str__(self):
+        return f"(Var {self.name})"
 
 ############################
 ## Environments

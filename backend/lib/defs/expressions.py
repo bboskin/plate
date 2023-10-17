@@ -9,12 +9,7 @@ except:
 ## Basic Programming Structures
 ################################
 
-class Variable(Expr):
-    def __init__(self, v : str, t : Type=Type()):
-        self.name = v
-        self.type = t
-    def __str__(self):
-        return f"(Var {self.name})"
+
 
 class Literal(Expr):
     def __init__(self, v, ty):
@@ -43,10 +38,13 @@ class Let(Expr):
 
 
 class Lambda(Expr):
-    def __init__(self, var : Variable, body : Expr):
-        self.var : Variable = var
-        self.body : Expr = body
-        self.type = TFunction(var.type, body.type)
+    def __init__(self, vars : [Variable], body : Expr):
+        self.var : Variable = vars[0]
+        if len(vars) > 1:
+            self.body : Expr = Lambda(vars[1:], body)
+        else:
+            self.body : Expr = body
+        self.type = TFunction(vars[0].type, self.body.type)
 
     def __str__(self):
         return F"(lambda {self.var} : {self.body})"
@@ -55,8 +53,6 @@ class Application(Expr):
     def __init__(self, rator : Expr, rand : Expr):
         self.operator : Expr = rator
         self.operand : Expr = rand
-        if not isinstance(rator.type, TFunction):
-            raise CompileError(f"Expected a function at application, got {rator.type}")
         self.type = rator.type.output
     
     def __str__(self):
@@ -223,7 +219,7 @@ class Length(Expr):
     def __str__(self):
         return f"(length {self.e1})"
 
-class In(Expr):
+class Contains(Expr):
     def __init__(self, e1 :Expr, e2 : Expr):
         self.value = e1
         self.list = e2
