@@ -19,6 +19,8 @@ class VNumber(Value):
     def __init__(self, v, ty : Type):
         self.value = v
         self.type : Type = ty
+    def __str__(self):
+        return str(self.value)
 
 class VBoolean(Value):
     def __init__(self, v, type : Type=TBoolean()):
@@ -37,8 +39,10 @@ class VString(Value):
 
 class VList(Value):
     def __init__(self, v, ty : Type):
-        self.value : list[Value] = v
+        self.values : list[Value] = v
         self.type : Type = ty
+    def __str__(self):
+        return f"{[str(e) for e in self.values]}"
 
 class VJust(Value):
     def __init__(self, v, ty : Type):

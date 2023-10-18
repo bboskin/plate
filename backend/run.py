@@ -20,6 +20,6 @@ if __name__ == "__main__":
         print(v)
 
 # if __name__ == "__main__":
-#     p = Parser("[y : Int] -> [x : Nat] -> Int")
+#     p = Parser("List Nat")
 #     # p = Parser("[x : Nat] -> Int")
 #     print(p.parse_type())

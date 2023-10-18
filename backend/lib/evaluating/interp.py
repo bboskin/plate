@@ -16,7 +16,9 @@ class Interpreter():
         env = Environment()
         for e in es:
             if isinstance(e, Defconst):
+                logger.info(f'extending {e.var} : {e.body.type} with {e.body}')
                 env.extend(e.var, self._eval(e.body, env))
+                logger.info(f"Env: {env.vars}")
             elif isinstance(e, Defunc):
                 var : Variable = e.var
                 env.extend(var, self._eval(e.body, env))
@@ -24,9 +26,11 @@ class Interpreter():
                 raise NotImplementedError
             else:
                 pass
+            logger.info(f"Current Env: {env}")
         for x in env.vars:
             if isinstance(x[1], Closure):
                 x[1].env = env.copy()
+        logger.info(f"Final Env: {env}")
         return env
 
     def eval_file(self, es : list[Expr], ρ : Environment) -> list[Value]:
@@ -168,6 +172,11 @@ class Interpreter():
             else:
                 return VBoolean(s1.value in s2.value)
             
+        if isinstance(e, List):
+            ans = []
+            for a in e.values:
+                ans.append(self._eval(a, env))
+            return VList(ans, e.type)
 
         ## Lists
         if isinstance(e, Append):

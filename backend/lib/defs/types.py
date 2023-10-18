@@ -7,25 +7,32 @@ except:
 ##########################
 
 class TNothing(Type):
-    pass
+    def __str__(self):
+        return "Nothing"
 
 class TBoolean(Type):
-    pass
+    def __str__(self):
+        return "Boolean"
 
 class TNum(Type):
-    pass
+    def __str__(self):
+        return "Num"
 
 class TRational(TNum):
-    pass
+    def __str__(self):
+        return "Rational"
 
 class TInt(TRational):
-    pass
+    def __str__(self):
+        return "Int"
 
 class TNat(TInt):
-    pass
+    def __str__(self):
+        return "Nat"
     
 class TString(Type):
-    pass
+    def __str__(self):
+        return "String"
     
 def merge_numeric_types(t1, t2):
     if isinstance(t1, TNat) and isinstance(t2, TNat):
@@ -42,11 +49,15 @@ def merge_numeric_types(t1, t2):
 class TList(Type):
     def __init__(self, type):
         self.contents : Type = type
+    def __str__(self):
+        return f"List[{self.contents}]"
 
 class TMaybe(Type):
     def __init__(self, type):
         super().__init__(self)
         self.type : Type = type
+    def __str__(self):
+        return f"Maybe[{self.contents}]"
 
 class TFunction(Type):
     def __init__(self, tin : Variable=Type, out : Type=Type):

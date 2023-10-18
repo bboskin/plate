@@ -60,7 +60,7 @@ class Parser():
     ###################################
 
     def parse_list(self) -> List:
-        # logger.debug("calling parse list")
+        logger.debug("calling parse list")
         bracket = self.parsing[0]
         if bracket != "[":
             raise CompileError(f"Expected bracket to start list parsing, found {bracket}")
@@ -464,9 +464,9 @@ class Parser():
         raise CompileError(f"Unknown Infix Operator: {op}")
 
     def parse_single_expr(self) -> Expr:
-        #logger.debug("calling parse single expr")
+        logger.debug(f"calling parse single expr on {self.parsing}")
         token = self.next()
-        #logger.debug(f"TOKEN: {token}")
+        logger.debug(f"TOKEN: {token}")
         if token in AllKeywords:
             return self.dispatch(token)
         elif "\"" == token[0]:
@@ -524,7 +524,8 @@ class Parser():
             raise CompileError(f"Expected defconst, found {token}")
         self.skip()
         var : Variable = self.parse_id()
-        #logger.info(var)
+        logger.info(var)
+        logger.info(f"calling parse expr on {self.parsing}")
         exp : Expr = self.parse_expr()
         #logger.info(exp)
         return Defconst(var, exp)

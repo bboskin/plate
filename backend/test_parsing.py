@@ -70,6 +70,6 @@ assert str(s10) == '(defunc (Var foo) : (lambda (Var x) : ((Var x) + (Literal 1)
 s11 = "defunc bar1 : [y : Int] -> [x : Nat] -> Int: x + y"
 p = Parser(s11)
 s11 = p.parse_def()
-print(str(s11))
+assert str(s11) == "(defunc (Var bar1) : (lambda (Var y) : (lambda (Var x) : ((Var x) + (Var y)))))"
 
 # logger.add(sys.stdout, level="DEBUG")
