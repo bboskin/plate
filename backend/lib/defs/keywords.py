@@ -17,7 +17,7 @@ INFIX = ['and', 'or', '+', '-', '*', '/', '%', '==', 'contains']
 ## everything together
 AllKeywords = LITERALS + PREFIX + TYPES + DEFS
 
-DELIMS = " ]),:"
+DELIMS = " ]),:\n"
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz" 
 NUMBERS = "01233456789"
@@ -33,6 +33,6 @@ def valid_variable_name(x : str):
         return False
     else:
         for c in x:
-            if x not in VARCHARS:
+            if c not in VARCHARS:
                 return False
         return True

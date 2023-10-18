@@ -50,16 +50,18 @@ class Variable(Expr):
 
 class Environment():
     def __init__(self):
-        self.vars = []
+        self.vars : list[(Variable, Value)]= []
 
+    def __str__(self):
+        return ",".join([f"{e[0]} : {e[1]}\n" for e in self.vars])
     def lookup(self, x) -> Value:
-        for y, t, v in self.vars:
-            if y == x:
+        for y, v in self.vars:
+            if y.name == x:
                 return v
         raise UnboundVariable(x)
     
-    def extend(self, x : str, ty : Type, v : Value):
-        self.vars = [[x, ty, v]] + self.vars
+    def extend(self, var : Variable, v : Value):
+        self.vars = [(var, v)] + self.vars
     
     def copy(self):
         e = Environment()

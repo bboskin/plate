@@ -47,16 +47,16 @@ class Lambda(Expr):
         self.type = TFunction(vars[0].type, self.body.type)
 
     def __str__(self):
-        return F"(lambda {self.var} : {self.body})"
+        return f"(lambda {self.var} : {self.body})"
 
 class Application(Expr):
     def __init__(self, rator : Expr, rand : Expr):
         self.operator : Expr = rator
         self.operand : Expr = rand
-        self.type = rator.type.output
+        self.type : Type = rator.type
     
     def __str__(self):
-        return f"{self.operator}({self.operand})"
+        return f"({self.operator} {self.operand})"
 
 class PrintThen(Expr):
     def __init__(self, message : str, e : Expr):
@@ -84,6 +84,7 @@ class Times(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
         self.e1 : Expr = e1
         self.e2 : Expr = e2
+        self.type : Type = merge_numeric_types(e1.type, e2.type)
     def __str__(self):
         return f"({self.e1} * {self.e2})"
 
@@ -286,18 +287,24 @@ class Def(Expr):
     pass
 
 class Defunc(Def):
-    def __init__(self, name : str, type : TFunction, body : Expr):
-        self.name = name
-        self.type : TFunction = type
+    def __init__(self, var : Variable, body : Expr):
+        self.var : Variable = var
         self.body : Expr = body
 
     def __str__(self):
-        return f"(defunc {self.name} : {self.type}: {self.body})"
+        return f"(defunc {self.var} : {self.body})"
 
 class Defconst(Def):
-    def __init__(self, name : str, e : Expr):
-        self.name : str = name
+    def __init__(self, var : Variable, e : Expr):
+        self.var : str = var
         self.body : Expr = e
 
     def __str__(self):
-        return f"(defconst {self.name} : {self.body})"
+        return f"(defconst {self.var} : {self.body})"
+    
+class Defrel(Def):
+    def __init__(self, var : Variable, e : Expr):
+        self.var : Variable = var
+        self.body : Expr = e
+    def __str__(self):
+        return f"(defrel {self.var} {self.body})"

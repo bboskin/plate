@@ -54,7 +54,7 @@ class TFunction(Type):
         self.output : Type = out
     
     def __str__(self):
-        return f"[{self.input} -> {self.output}]"
+        return f"({self.input} -> {self.output})"
 
     @classmethod
     def __eq__(v1, v2):

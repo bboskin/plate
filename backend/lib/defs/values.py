@@ -53,6 +53,9 @@ class Closure(Value):
         self.env : Environment = env
         self.body : Expr = body
 
+    def __str__(self):
+        return f"(Closure {self.var} : {self.body})"
+
 class U(Value):
     def __init__(self, level):
         self.value = level

@@ -1,3 +1,5 @@
+from loguru import logger
+import sys
 from ..defs import *
 
 class Interpreter():
@@ -6,12 +8,38 @@ class Interpreter():
 
     def apply_closure(self, rator : Closure, rand : Value):
         env : Environment = rator.env
-        env.extend(rator.var.name, rator.var.type, rand)
+        env.extend(rator.var, rand)
+        logger.info(str(rator))
         return self._eval(rator.body, env)
+
+    def init_env(self, es : list[Expr]) -> Environment:
+        env = Environment()
+        for e in es:
+            if isinstance(e, Defconst):
+                env.extend(e.var, self._eval(e.body, env))
+            elif isinstance(e, Defunc):
+                var : Variable = e.var
+                env.extend(var, self._eval(e.body, env))
+            elif isinstance(e, Defrel):
+                raise NotImplementedError
+            else:
+                pass
+        for x in env.vars:
+            if isinstance(x[1], Closure):
+                x[1].env = env.copy()
+        return env
+
+    def eval_file(self, es : list[Expr], ρ : Environment) -> list[Value]:
+        ans = []
+        for e in es:
+            if not isinstance(e, Def):
+                ans.append(self._eval(e, ρ))
+        return ans
+
 
     def eval(self, e : Expr):
         v = self._eval(e, Environment())
-        return v.value
+        return v
 
     def _eval(self, e : Expr, env : Environment) -> Value:
         ## base cases
@@ -39,7 +67,7 @@ class Interpreter():
         
         if isinstance(e, Let):
             v = self._eval(e.bind, env)
-            env.extend(e.var.name, e.var.type, v)
+            env.extend(e.var, v)
             return self._eval(e.body, env)
         
         ## Functions 
@@ -47,10 +75,14 @@ class Interpreter():
             return Closure(e.var, env.copy(), e.body)
 
         if isinstance(e, Application):
+            logger.info(f"IN APP WITH: {e}")
             oper = self._eval(e.operator, env)
+
             if not isinstance(oper, Closure):
                 raise RuntimeError(f"Expected a closure, found: {oper}")
             operand = self._eval(e.operand, env)
+            logger.info(f"\nAPPLYING CLOSURE: \n({oper}, \n{operand})")
+
             return self.apply_closure(oper, operand)
 
         ## Booleans
@@ -147,7 +179,7 @@ class Interpreter():
                 raise RuntimeError
             else:
                 return VList(l1.value + l2.value)
-        if isinstance(e, IsNull):
+        if isinstance(e, Empty):
             l1 = self._eval(e.e1, env)
             if not (isinstance(l1, VList)):
                 raise RuntimeError
