@@ -119,7 +119,6 @@ class Parser():
         logger.debug(res)
         return res
 
-
     def parse_literal(self) -> Literal:
         # logger.debug("calling parse literal")
         s = self.next()

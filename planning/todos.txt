@@ -1,3 +1,64 @@
+NEW PLAN
+
+1. Finish implementing NbE on dependent types with:
+  -- Booleans
+  -- Numbers
+  -- Strings
+  -- Lists
+  -- Equality
+  -- Forall, Exists
+
+  1.1 Finish check
+  1.2 Add all types to synth
+
+2. Write some programs and proofs
+
+3. Decisions:
+
+  Decide how to stylize 'logical' operators
+    -- taking advantage of 'if' context (with Absurd)
+    -- inductive operator for lists
+
+  Decide how to handle induction on Integers
+  Decide if we can simulate recursion
+  Finalize decisions of overloaded operators
+  Finalize decisions of typecasting
+  Finalize decisions of booleans
+
+  make 'do' macro to sequence equality chains
+
+4. Finalize implementation based on decisions from 3
+
+5. Write some programs and proofs
+
+6. Add Absurd, Vectors (?)
+
+7. Write more programs and proofs
+
+8. VS Code syntax highlighting
+
+9. Have very solid confidence in parser and typechecker
+   -- implememnt stdlib of house proofs in the language
+       -- basic math 
+       -- boolean algebra
+
+10. Write more programs and proofs using stdlib
+
+11/12. 
+ -- Start thinking about Plate type
+ -- Serious documentation about language as it exists
+
+
+
+
+
+
+
+
+
+
+==============================
+OLD PLAN FOR LEGACY
 First Things:
  - Write parallel mergesort using multiprocessing
  - Figure out how we want to write this in Plate

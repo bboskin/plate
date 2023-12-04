@@ -6,10 +6,6 @@ except:
 ## Basic Types
 ##########################
 
-class TNothing(Type):
-    def __str__(self):
-        return "Nothing"
-
 class TBoolean(Type):
     def __str__(self):
         return "Boolean"
@@ -57,7 +53,7 @@ class TMaybe(Type):
         super().__init__(self)
         self.type : Type = type
     def __str__(self):
-        return f"Maybe[{self.contents}]"
+        return f"Maybe[{self.type}]"
 
 class TFunction(Type):
     def __init__(self, tin : Variable=Type, out : Type=Type):
@@ -110,7 +106,7 @@ class TExists(Type):
 class TForAll(Type):
     def __init__(self, var : Variable, p : Type):
         self.var : Variable = var
-        self.prop = p
+        self.prop : Type = p
 
 class TAbsurd(Type):
     def __init__(self):
