@@ -244,27 +244,6 @@ class Empty(Expr):
     def __str__(self):
         return f"(empty {self.e1})"
 
-class Car(Expr):
-    def __init__(self, e1 : Expr):
-        super().__init__(self)
-        self.e1 : Expr = e1
-        self.type : Type = Type()
-        self.normalized = False
-        self.typed = False
-    
-    def __str__(self):
-        return f"(empty {self.e1})"
-    
-class Cdr(Expr):
-    def __init__(self, e1 : Expr):
-        super().__init__(self)
-        self.e1 : Expr = e1
-        self.type : Type = Type()
-        self.normalized = False
-        self.typed = False
-    
-    def __str__(self):
-        return f"(empty {self.e1})"
 
 class ListLoop(Expr):
     def __init__(self, ls : Expr, ty : Type, base : Expr, op : Expr):
@@ -331,6 +310,17 @@ class Just(Expr):
 ## Dependent Types
 #####################
 
+class Induct(Expr):
+    def __init__(self, arg : Expr, out_type : Expr, base : Expr, inds : [Expr], type : Type=Type()):
+        super().__init__(self)
+        self.arg : Expr = arg
+        self.out_type : Type = out_type
+        self.base : Expr = base
+        self.inds : [Expr] = inds
+        self.type : Type = type
+        self.normalized = False
+        self.typed = False
+
 class Refl(Expr):
     def __init__(self, val : Expr, ty : Type):
         super().__init__(self)
@@ -389,7 +379,28 @@ class Look(Expr):
     def __str__(self):
         return f"(look {self.element} : {self.proof})"
 
-
+class Car(Expr):
+    def __init__(self, e1 : Expr):
+        super().__init__(self)
+        self.e1 : Expr = e1
+        self.type : Type = Type()
+        self.normalized = False
+        self.typed = False
+    
+    def __str__(self):
+        return f"(car {self.e1})"
+    
+class Cdr(Expr):
+    def __init__(self, e1 : Expr):
+        super().__init__(self)
+        self.e1 : Expr = e1
+        self.type : Type = Type()
+        self.normalized = False
+        self.typed = False
+    
+    def __str__(self):
+        return f"(cdr {self.e1})"
+    
 ####################
 ## Definitions
 ####################

@@ -72,8 +72,10 @@ class Normalizer():
         return res
     
     def synth_app(self, Γ : Context, e : Application) -> Expr:
-        op = self.synth(Γ, e.operator)
-        arg = self.synth(Γ, e.operand)
+        if not (e.operator.normalized and e.operator.typed):
+            op = self.synth(Γ, e.operator)
+        if not (e.operand.normalized and e.operand.typed):
+            arg = self.synth(Γ, e.operand)
         if (not ((isinstance(op.type, TFunction)) or isinstance(op.type, TForAll))):
             raise NbEError(f"Invalid Function type for {op}, {op.type}")
         input_ty = op.type.input
@@ -309,10 +311,169 @@ class Normalizer():
         Γ2 = Γ.copy()
         Γ2 = Γ2.extend(x, a)
         return self.synth(Γ, e.body)
+    
+    def synth_induct_nat(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
+        base_type = self.synth(Application(out_type, Literal(0)))
+        base = self.check(Γ, base, base_type)
+        new_var = Variable("_n", TNat())
+        Γ2 = Γ.copy()
+        Γ2.extend(new_var, new_var)
+        rec_type = self.synth(Γ2, Application(out_type, new_var)) 
+        ind_step = self.synth(Γ2, Application(out_type, Plus(Literal(1, TNat()), new_var))) 
+        ind_type = TForAll(new_var, TForAll(Variable("_IH", rec_type), ind_step))
+        ind = self.check(Γ, inds[0], ind_type)
+        def synth_induct_nat_helper(e : Expr):
+            if isinstance(e, Literal):
+                if (e.val == 0):
+                    return base
+                else:
+                    v = synth_induct_nat_helper(Literal(e.val - 1, TNat()))
+                    return self.synth(Γ, Application(Application(ind, e.val - 1), v))
+            elif isinstance(e, Plus):
+                if isinstance(e.e1, Literal) and isinstance(e.e1.type, TNat):
+                    if e.e1.val == 0:
+                        raise NbEError(f"Found 0 at top of normalized plus: {e}")
+                    elif e.e1.val < 0:
+                        raise NbEError(f"Found negative in TNat Literal")
+                    else:
+                        v = synth_induct_nat_helper(Plus(Literal(e.e1.val - 1, TNat), e.e2))
+                        return self.synth(Γ, Application(Application(ind, e.e1.val - 1), v))
+                else:
+                    res = Induct(e, out_type, base, [ind], inst_type)
+                    res.normalized = True
+                    res.typed = True
+                    return res
+                
+        return synth_induct_nat_helper(arg)
 
-    def synth_list_loop(self, Γ : Context, e : ListLoop) -> Expr:
+    def synth_induct_int(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
+        base_type = self.synth(Application(out_type, Literal(0)))
+        base = self.check(Γ, base, base_type)
+        new_var = Variable("_i", TInt())
+        Γ2 = Γ.copy()
+        Γ2.extend(new_var, new_var)
+        rec_type = self.synth(Γ2, Application(out_type, new_var)) 
+        ind_pos_step = self.synth(Γ2, Application(out_type, Plus(Literal(1, TNat()), new_var))) 
+        ind_neg_step = self.synth(Γ2, Application(out_type, Plus(Literal(-1, TInt()), new_var))) 
+        ind_type_pos = TForAll(new_var, TForAll(Variable("_IH", rec_type), ind_pos_step))
+        ind_type_neg = TForAll(new_var, TForAll(Variable("_IH", rec_type), ind_neg_step))
+        ind_pos = self.check(Γ, inds[0], ind_type_pos)
+        ind_neg = self.check(Γ, inds[1], ind_type_neg)
+        def synth_induct_int_helper(e : Expr):
+            if isinstance(e, Literal):
+                if (e.val == 0):
+                    return base
+                elif (e.val < 0):
+                    v = synth_induct_int_helper(Literal(e.val + 1, TInt()))
+                    return self.synth(Γ, Application(ind_neg, v))
+                else:
+                    v = synth_induct_int_helper(Literal(e.val - 1, TNat()))
+                    return self.synth(Γ, Application(ind_pos, v))
+            elif isinstance(e, Plus):
+                if isinstance(e.e1, Literal) and isinstance(e.e1.type, TNat):
+                    if e.e1.val == 0:
+                        raise NbEError(f"Found 0 at top of normalized plus: {e}")
+                    elif e.e1.val < 0:
+                        v = synth_induct_int_helper(Plus(Literal(e.e1.val + 1, TInt()), e.e2))
+                        return self.synth(Γ, Application(ind_neg, v))
+                    else:
+                        v = synth_induct_int_helper(Plus(Literal(e.e1.val - 1, TNat()), e.e2))
+                        return self.synth(Γ, Application(ind_pos, v))
+                else:
+                    res = Induct(e, out_type, base, [ind_pos, ind_neg], inst_type)
+                    res.normalized = True
+                    res.typed = True
+                    return res
+        return synth_induct_int_helper(arg)
+    
+    def synth_induct_maybe(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
+        base_type = self.synth(Application(out_type, Literal(0)))
+        base = self.check(Γ, base, base_type)
+        new_var = Variable("_maybe", arg.type)
+        Γ2 = Γ.copy()
+        Γ2.extend(new_var, new_var)
+        rec_type = self.synth(Γ2, Application(out_type, new_var)) 
+        ind_pos_step = self.synth(Γ2, Application(out_type, Plus(Literal(1, TNat()), new_var)))
+        ind_type_pos = TForAll(Variable("_IH", rec_type), ind_pos_step)
+        ind = self.check(Γ, inds[0], ind_type_pos)
+        def synth_induct_maybe_helper(e : Expr):
+            if isinstance(e, ENothing):
+                return base
+            elif isinstance(e, Just):
+                return self.check(Γ, Application(ind, e.e1), rec_type, inst_type)
+            else:
+                res = Induct(e, out_type, base, [ind], inst_type)
+                res.normalized = True
+                res.typed = True
+                return res
+        return synth_induct_maybe_helper(arg)
+    
+    def synth_induct_list(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
+        base_type = self.synth(Application(out_type, Literal(0)))
+        base = self.check(Γ, base, base_type)
+        new_var = Variable("_elem", arg.type.type)
+        ls      = Variable("_ls", arg.type)
+        Γ2 = Γ.copy()
+        Γ2.extend(new_var, new_var)
+        Γ2.extend(ls, ls)
+        rec_type = self.synth(Γ2, Application(out_type, new_var)) 
+        ind_step = self.synth(Γ2, Application(out_type, Plus(Literal(1, TNat()), new_var))) 
+        ind_type = TForAll(new_var, TForAll(Variable("_IH", rec_type), ind_step))
+        ind = self.check(Γ, inds[0], ind_type)
+        def synth_induct_list_helper(e : Expr):
+            if isinstance(e, List):
+                if len(e.values) == 0:
+                    return base
+                else:
+                    new_ls = List(e.values[1:].copy(), e.type)
+                    v = synth_induct_list_helper(new_ls)
+                    return self.synth(Γ, Application(Application(ind, e.values[0]), v))
+            elif isinstance(e, Append):
+                if isinstance(e.e1, List):
+                    if len(e.e1.values) == 0:
+                        raise NbEError(f"Found empty list at top of normalized append: {e}")
+                    else:
+                        new_ls = List(e.e1.values[1:].copy(), e.e1.type)
+                        v = synth_induct_list_helper(Append(new_ls, e.e2))
+                        return self.synth(Γ, Application(Application(ind, e.e1.values[0]), v))
+                else:
+                    res = Induct(e, out_type, base, [ind], inst_type)
+                    res.normalized = True
+                    res.typed = True
+                    return res
+                
+        return synth_induct_list_helper(arg)
+    
+    def synth_induct_either(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
         raise NotImplementedError
     
+    def synth_induct_eq(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
+        raise NotImplementedError
+
+    def synth_induct(self, Γ : Context, e : Induct) -> Expr:
+        arg = self.synth(Γ, e.arg)
+        out_type = self.synth(Γ, e.out_type)
+        if not isinstance(out_type, Lambda):
+            raise NbEError(f"Not a Lambda: {out_type}")
+        if not alpha_equiv(arg.type, out_type.var.type):
+            raise NbEError(f"Invalid type function input type for {arg.type} : {out_type.var.type}")
+        
+        inst_type = self.synth(Γ, Application(out_type, arg))
+        if isinstance(arg.type, TNat):
+            return self.synth_induct_nat(Γ, arg, out_type, e.inds, e.base, inst_type)
+        if isinstance(arg.type, TInt):
+            return self.synth_induct_int(Γ, arg, out_type, e.inds, e.base, inst_type)
+        if isinstance(arg.type, TMaybe):
+            return self.synth_induct_maybe(Γ, arg, out_type, e.inds, e.base, inst_type)
+        if isinstance(arg.type, TList):
+            return self.synth_induct_list(Γ, arg, out_type, e.inds, e.base, inst_type)
+        if isinstance(arg.type, TEither):
+            return self.synth_induct_either(Γ, arg, out_type, e.inds, e.base, inst_type)
+        if isinstance(arg.type, TEqual):
+            return self.synth_induct_eq(Γ, arg, out_type, e.inds, e.base, inst_type)
+        else:
+            raise NbEError(f"Induct expected an Inductive Type, got {arg.type}")
+
     def synth(self, Γ : Context, e : Expr) -> Expr:
         res = None
 
@@ -368,8 +529,8 @@ class Normalizer():
             res = self.synth_app(Γ, e)
 
         ## dependent types
-        elif isinstance(e, ListLoop):
-            res = self.synth_list_loop(Γ, e)
+        elif isinstance(e, Induct):
+            res = self.synth_induct(Γ, e)
         else:
             raise NbEError(f"Unknown Expression in synth: {e}")
         assert isinstance(res, Expr)
@@ -488,11 +649,29 @@ class Normalizer():
         
     ## Σ Expressions
     def check_look(self, Γ, e : Look, τ : Type) -> Expr:
+        if not isinstance(τ, TExists):
+            raise NbEError(f"Expected Exists type for look exp, got: {τ}")
+        a = e.element
+        d = e.proof
+        a = self.check(Γ, a, τ.var_type)
         raise NotImplementedError
     
     def check_car(self, Γ, e : Car, τ : Type) -> Expr:
-        raise NotImplementedError
-    
+        e = self.synth(Γ, e.e1)
+        if not isinstance(e.type, TExists):
+            raise NbEError(f"Expected Exists type for car argument, got: {τ}")
+        if not alpha_equiv(τ, e.type.var_type):
+            raise NbEError(f"Mismatched types between car pair car and expectation, got {e.type.var_type} but expected {τ}")
+        elif isinstance(e, Look):
+            return e.element
+        else:
+            res = Car(e)
+            res.type = e.type.var_type
+            res.normalized = True
+            res.typed = True
+            return res
+        
+
     def check_cdr(self, Γ, e : Cdr, τ : Type) -> Expr:
         raise NotImplementedError
 

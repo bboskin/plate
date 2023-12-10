@@ -26,7 +26,7 @@ class Value():
         return str(self.value)
 
 class Expr():
-    def __init__(self, type=None):
+    def __init__(self, type):
         self.type : Type = type
         self.typed = False
         self.normalized = False

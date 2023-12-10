@@ -30,6 +30,10 @@ class TString(Type):
     def __str__(self):
         return "String"
     
+class TEither(Type):
+    def __str__(self):
+        return "Either"
+    
 def merge_numeric_types(t1, t2):
     if isinstance(t1, TNat) and isinstance(t2, TNat):
         return TNat()
