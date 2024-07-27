@@ -1,6 +1,8 @@
 try:
     from .interp import *
-    from .parser import *
+    from .parse import *
+    from .nbe import *
 except:
     from interp import *
-    from parser import *
+    from parse import *
+    from nbe import *

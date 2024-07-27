@@ -39,17 +39,25 @@ class Type(Expr):
         self.normalized = False
     def __str__(self):
         return "Type"
-    
+
 class Variable(Expr):
     def __init__(self, v : str, t : Type=Type()):
-        super().__init__(self, t)
         self.name = v
         self.type = t
         self.typed = True
         self.normalized = True
     def __str__(self):
-        return f"(Var {self.name})"
+        return f"(Var {self.name} : {self.type})"
 
+class Literal(Expr):
+    def __init__(self, v, ty):
+        self.val = v
+        self.type : Type = ty
+        self.normalized = False
+        self.typed = False
+    def __str__(self):
+        return f"(Literal {self.val})"
+    
 ############################
 ## Environments
 ############################

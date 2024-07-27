@@ -13,14 +13,6 @@ except:
 ## Basic Programming Structures
 ################################
 
-class Literal(Expr):
-    def __init__(self, v, ty):
-        self.val = v
-        self.type : Type = ty
-        self.normalized = False
-        self.typed = False
-    def __str__(self):
-        return f"(Literal {self.val})"
 
 
 class ENothing():
@@ -32,13 +24,22 @@ class ENothing():
     def __str__(self):
         return "nothing"
 
+class QED(Expr):
+    def __init__(self):
+        self.typed = False
+        self.normalized = False
+    def __str__(self):
+        return "QED"
+    
 class Let(Expr):
     def __init__(self, var : Variable, bind : Expr, b : Expr):
-        super().__init__(self)
         self.var = var
         self.bind = bind
         self.body = b
         self.type = b.type
+        self.normalized = False
+        self.typed = False
+
 
     def __str__(self):
         return f"(let {self.var} be {self.bind} in {self.body})"
@@ -46,21 +47,20 @@ class Let(Expr):
 
 class Lambda(Expr):
     def __init__(self, vars : [Variable], body : Expr):
-        super().__init__(self)
         self.var : Variable = vars[0]
         if len(vars) > 1:
             self.body : Expr = Lambda(vars[1:], body)
         else:
             self.body : Expr = body
-        self.type = TFunction(vars[0].type, self.body.type)
+        self.type = TForAll(vars[0], self.body.type)
         self.normalized = False
         self.typed = False
+        # print(f"Constructed a lambda {self} with {self.type}")
     def __str__(self):
         return f"(lambda {self.var} : {self.body})"
 
 class Application(Expr):
     def __init__(self, rator : Expr, rand : Expr):
-        super().__init__(self)
         self.operator : Expr = rator
         self.operand : Expr = rand
         self.type : Type = rator.type
@@ -87,7 +87,6 @@ class PrintThen(Expr):
 
 class Plus(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type = merge_numeric_types(e1.type, e2.type)
@@ -95,10 +94,29 @@ class Plus(Expr):
         self.typed = False
     def __str__(self):
         return f"({self.e1} + {self.e2})"
+    
+class Max(Expr):
+    def __init__(self, e1 : Expr, e2 : Expr):
+        self.e1 : Expr = e1
+        self.e2 : Expr = e2
+        self.type = merge_numeric_types(e1.type, e2.type)
+        self.normalized = False
+        self.typed = False
+    def __str__(self):
+        return f"(max {self.e1}, {self.e2})"
+
+class Min(Expr):
+    def __init__(self, e1 : Expr, e2 : Expr):
+        self.e1 : Expr = e1
+        self.e2 : Expr = e2
+        self.type = merge_numeric_types(e1.type, e2.type)
+        self.normalized = False
+        self.typed = False
+    def __str__(self):
+        return f"(min {self.e1}, {self.e2})"
 
 class Times(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type : Type = merge_numeric_types(e1.type, e2.type)
@@ -109,7 +127,6 @@ class Times(Expr):
 
 class Divide(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
     def __str__(self):
@@ -117,7 +134,6 @@ class Divide(Expr):
 
 class Mod(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type : Expr = TNat()
@@ -131,7 +147,6 @@ class Mod(Expr):
 
 class If(Expr):
     def __init__(self, condition : Expr, consequent : Expr, else_expr : Expr, ty : Type=Type()):
-        super().__init__(self)
         self.test : Expr = condition
         self.consequent : Expr = consequent
         self.else_expr : Expr = else_expr
@@ -144,7 +159,6 @@ class If(Expr):
 
 class Or(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type : Type = TBoolean()
@@ -156,7 +170,6 @@ class Or(Expr):
 
 class And(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type : Type = TBoolean()
@@ -168,7 +181,6 @@ class And(Expr):
 
 class Not(Expr):
     def __init__(self, e1 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.type : Type = TBoolean()
         self.normalized = False
@@ -178,7 +190,6 @@ class Not(Expr):
 
 class Equal(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type : Type = TBoolean()
@@ -194,7 +205,6 @@ class Equal(Expr):
 
 class Concat(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type = TString()
@@ -206,7 +216,6 @@ class Concat(Expr):
 
 class Contains(Expr):
     def __init__(self, e1 : Expr, e2 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type = TBoolean()
@@ -223,7 +232,6 @@ class Contains(Expr):
 
 class Append(Expr):
     def __init__(self, e1 : Expr, e2 : Expr, ty : Type):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.e2 : Expr = e2
         self.type : Type = ty
@@ -235,7 +243,6 @@ class Append(Expr):
 
 class Empty(Expr):
     def __init__(self, e1 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.type : Type = TBoolean()
         self.normalized = False
@@ -245,23 +252,9 @@ class Empty(Expr):
         return f"(empty {self.e1})"
 
 
-class ListLoop(Expr):
-    def __init__(self, ls : Expr, ty : Type, base : Expr, op : Expr):
-        super().__init__(self)
-        self.ls : Expr = ls
-        self.type : Type = ty
-        self.base : Expr = base
-        self.op : Expr = op
-        self.normalized = False
-        self.typed = False
-
-    def __str__(self):
-        return f"(car {self.e1})"
-
 
 class Length(Expr):
     def __init__(self, e1 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.type = TNat()
 
@@ -270,7 +263,7 @@ class Length(Expr):
 
 class Member(Expr):
     def __init__(self, e1 :Expr, e2 : Expr):
-        super().__init__(self)
+
         self.value = e1
         self.list = e2
         self.type = TBoolean()
@@ -282,7 +275,7 @@ class Member(Expr):
     
 class List(Expr):
     def __init__(self, es  : list[Expr], type : Type=TList(Type())):
-        super().__init__(self)
+
         self.values : list[Expr] = es
         self.type : Type = type
         self.normalized = False
@@ -297,7 +290,6 @@ class List(Expr):
 
 class Just(Expr):
     def __init__(self, e1 : Expr, ty : Type=Type()):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.type = TMaybe(ty)
         self.normalized = False
@@ -312,7 +304,6 @@ class Just(Expr):
 
 class Induct(Expr):
     def __init__(self, arg : Expr, out_type : Expr, base : Expr, inds : [Expr], type : Type=Type()):
-        super().__init__(self)
         self.arg : Expr = arg
         self.out_type : Type = out_type
         self.base : Expr = base
@@ -320,10 +311,11 @@ class Induct(Expr):
         self.type : Type = type
         self.normalized = False
         self.typed = False
+    def __str__(self):
+        return f"(induct {self.arg} : {self.type} -> {self.out_type})"
 
 class Refl(Expr):
     def __init__(self, val : Expr, ty : Type):
-        super().__init__(self)
         self.val : Expr = val
         self.type : Type = ty
         self.normalized = False
@@ -334,7 +326,6 @@ class Refl(Expr):
 
 class Symm(Expr):
     def __init__(self, e : Expr, ty : TEqual):
-        super().__init__(self)
         self.body = e
         self.ty : TEqual = ty
         self.normalized = False
@@ -345,7 +336,6 @@ class Symm(Expr):
     
 class Trans(Expr):
     def __init__(self, e1 : Expr, e2 : Expr, ty : TEqual):
-        super().__init__(self)
         self.e1 = e1
         self.e2 = e2
         self.ty = ty
@@ -357,7 +347,6 @@ class Trans(Expr):
     
 class Cong(Expr):
     def __init__(self, f : Expr, e : Expr, ty : TEqual):
-        super().__init__(self)
         self.fn = f
         self.e1 = e
         self.ty = ty
@@ -369,7 +358,6 @@ class Cong(Expr):
 
 class Look(Expr):
     def __init__(self, e : Expr, proof : Expr, type : Type):
-        super().__init__(self)
         self.element : Expr = e
         self.proof : Expr = proof
         self.type : Type = type
@@ -381,7 +369,6 @@ class Look(Expr):
 
 class Car(Expr):
     def __init__(self, e1 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.type : Type = Type()
         self.normalized = False
@@ -392,7 +379,6 @@ class Car(Expr):
     
 class Cdr(Expr):
     def __init__(self, e1 : Expr):
-        super().__init__(self)
         self.e1 : Expr = e1
         self.type : Type = Type()
         self.normalized = False
@@ -401,6 +387,26 @@ class Cdr(Expr):
     def __str__(self):
         return f"(cdr {self.e1})"
     
+class Left(Expr):
+    def __init__(self, e1 : Expr):
+        self.e1 : Expr = e1
+        self.type : Type = Type()
+        self.normalized = False
+        self.typed = False
+    
+    def __str__(self):
+        return f"(left {self.e1})"
+
+class Right(Expr):
+    def __init__(self, e1 : Expr):
+        self.e1 : Expr = e1
+        self.type : Type = Type()
+        self.normalized = False
+        self.typed = False
+    
+    def __str__(self):
+        return f"(right {self.e1})"
+
 ####################
 ## Definitions
 ####################
@@ -410,7 +416,6 @@ class Def(Expr):
 
 class Defunc(Def):
     def __init__(self, var : Variable, body : Expr):
-        super().__init__(self)
         self.var : Variable = var
         self.body : Expr = body
 
@@ -419,7 +424,6 @@ class Defunc(Def):
 
 class Defconst(Def):
     def __init__(self, var : Variable, e : Expr):
-        super().__init__(self)
         self.var : str = var
         self.body : Expr = e
 
@@ -428,7 +432,6 @@ class Defconst(Def):
     
 class Defrel(Def):
     def __init__(self, var : Variable, e : Expr):
-        super().__init__(self)
         self.var : Variable = var
         self.body : Expr = e
     def __str__(self):

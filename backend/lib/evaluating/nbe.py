@@ -1,5 +1,8 @@
-from defs import *
-from equiv import alpha_equiv, is_numeric_subtype
+from ..defs import *
+from .equiv import alpha_equiv, is_numeric_subtype
+from fractions import Fraction
+from traceback import format_exc
+from loguru import logger
 
 
 """
@@ -36,34 +39,39 @@ class Normalizer():
     def is_numeric_type(self, τ):
         return (isinstance(τ, TNat) or isinstance(τ, TInt) or isinstance(τ, TRational))
 
+    def eval(self, e : Expr) -> Expr:
+        Γ = Context()
+        return self.synth(Γ, e)
 
     ###############
     ## Synth Helpers
     ###############
 
-    def synth_literal(l : Literal) -> Expr:
+    
+    def synth_literal(self, l : Literal) -> Expr:
         t = l.type
         v = l.val
         l.normalized = True
         l.typed = True
-        if isinstance(t, TNat):
-            if (isinstance(v, int) and (v >= 0)):
-                return l
-        elif isinstance(t, TInt):
-            if isinstance(v, int):
-                return l
-        elif isinstance(t, TRational):
-            if (isinstance(v, int) or isinstance(v, float)):
-                return l
-        if isinstance(t, TString):
-            if isinstance(v, str):
-                return l
-        if isinstance(t, TBoolean):
-            if isinstance(v, bool):
-                return l
+        if (isinstance(v, str)):
+            res = Literal(v, TString())
+        elif (isinstance(v, bool)):
+            res = Literal(v, TBoolean())
+        elif (isinstance(v, int) and (v >= 0)):
+            res = Literal(v, TNat())
+        elif isinstance(v, int):
+            res = Literal(v, TInt())
+        elif isinstance(v, Fraction):
+            res = Literal(v, TRational())
+            raise NotImplementedError
+        elif isinstance(v, float):
+            raise NotImplementedError
         else:
             raise NbEError(f"Found Invalid literal/type combo at {v} : {t}")
-
+        res.normalized = True
+        res.typed = True
+        return res
+    
     def synth_print(self, Γ : Context, e : PrintThen) -> PrintThen:
         e = self.synth(Γ, e)
         res = PrintThen(e.type, e)
@@ -72,26 +80,49 @@ class Normalizer():
         return res
     
     def synth_app(self, Γ : Context, e : Application) -> Expr:
-        if not (e.operator.normalized and e.operator.typed):
+        if not isinstance(e.operator, Lambda):
             op = self.synth(Γ, e.operator)
-        if not (e.operand.normalized and e.operand.typed):
-            arg = self.synth(Γ, e.operand)
-        if (not ((isinstance(op.type, TFunction)) or isinstance(op.type, TForAll))):
+        else:
+            op = e.operator
+        #logger.info(Γ)
+        logger.info(e.operator)
+        # op = self.synth(Γ, e.operator)
+        logger.info(op.type)
+        if isinstance(op.type.input, Variable):
+            arg = self.check(Γ, e.operand, op.type.input.type)
+            input_ty = op.type.input.type
+        else:
+            arg = self.check(Γ, e.operand, op.type.input)
+            input_ty = op.type.input
+        logger.info(arg)
+        #logger.info(f'{op}, {op.type}')
+        #logger.info(f'{arg}, {arg.type}')
+        if not (isinstance(op.type, TFunction) or isinstance(op.type, TForAll)):
             raise NbEError(f"Invalid Function type for {op}, {op.type}")
-        input_ty = op.type.input
+        
+
         arg_ty = arg.type
+        # logger.debug(input_ty)
         if not (alpha_equiv(input_ty, arg_ty)):
-            raise NbEError(f"Invalid Argument type when expecting {input_ty}: {arg_ty}")
+
+            raise NbEError(f"Invalid Argument type when expecting {input_ty}: {arg_ty} for {arg}")
         if isinstance(op, Lambda):
             Γ2 = Γ.copy()
             Γ2.extend(op.var, arg)
-            return self.synth(Γ2, op.body)
+            return self.check(Γ2, op.body, op.body.type)
         else:
             res = Application(op, arg)
-            res.type = op.type.output
+            if isinstance(op.type, TFunction):
+                res.type = op.type.output
+            elif isinstance(op.type, TForAll):
+                res.type = op.type.prop
+            else:
+                new_ty = Let(Variable("_f", TFunction(arg.type, op.type)),
+                             Lambda(Variable("_a", arg.type)))
+                res_type = self.synth()
             res.normalized = True
             res.typed = True
-            return res
+        return res
         
     def synth_if(self, Γ : Context, e : If) -> Expr:
         test = self.synth(Γ, e.test)
@@ -306,11 +337,13 @@ class Normalizer():
         return res
     
     def synth_let(self, Γ : Context, e : Let) -> Expr:
+        #logger.debug(f"Let Expr: {e}")
         x : Variable = e.var
         a = self.check(Γ, e.bind, x.type)
+        #logger.info(e.bind)
         Γ2 = Γ.copy()
-        Γ2 = Γ2.extend(x, a)
-        return self.synth(Γ, e.body)
+        Γ2.extend(x, a)
+        return self.synth(Γ2, e.body)
     
     def synth_induct_nat(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
         base_type = self.synth(Application(out_type, Literal(0)))
@@ -409,7 +442,7 @@ class Normalizer():
         return synth_induct_maybe_helper(arg)
     
     def synth_induct_list(self, Γ : Context, arg : Expr, out_type : Expr, inds : Expr, base : Expr, inst_type : Expr):
-        base_type = self.synth(Application(out_type, Literal(0)))
+        base_type = self.synth(Γ, Application(out_type, Literal(0, TNat())))
         base = self.check(Γ, base, base_type)
         new_var = Variable("_elem", arg.type.type)
         ls      = Variable("_ls", arg.type)
@@ -531,13 +564,101 @@ class Normalizer():
         ## dependent types
         elif isinstance(e, Induct):
             res = self.synth_induct(Γ, e)
+
+        ## Type expressions
+        elif isinstance(e, TUniverse):
+            level = self.synth(Γ, e.level)
+            if not isinstance(level.type, TNat):
+                raise NbEError(f"Expected universe level to have nat type, got: {level}")
+            level = self.check(Γ, Plus(Literal(1, TNat()), level), TNat())
+            level2 = self.check(Γ, Plus(Literal(2, TNat()), level), TNat())
+            res = TUniverse(level)
+            res.type = TUniverse(level2)
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TNat):
+            res = TNat()
+            res.type = TUniverse(Literal(0, TNat()))
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TInt):
+            res = TInt()
+            res.type = TUniverse(Literal(0, TNat()))
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TRational):
+            res = TRational()
+            res.type = TUniverse(Literal(0, TNat()))
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TString):
+            res = TString()  
+            res.type = TUniverse(Literal(0, TNat()))
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TBoolean):
+            res = TBoolean()  
+            res.type = TUniverse(Literal(0, TNat()))
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TEither):
+            lft = self.synth(Γ, e.left)
+            rght = self.synth(Γ, e.right)
+            if not (isinstance(lft.type, TUniverse) and isinstance(rght.type, TUniverse)):
+                raise NbEError(f"Expected either subtypes type to be universe, got: {lft.type}, {rght.type}")
+            level = self.check(Γ, Plus(Literal(1, TNat()), Max(lft.type.level, rght.type.level)), TNat())
+            res_ty = TUniverse(level)
+            res_ty.normalized = True
+            res_ty.typed = True
+            res = TEither(lft.type, rght.type, res_ty)
+            res.normalized = True
+            res.typed = True
+
+        elif isinstance(e, TList):
+            elem_ty = self.synth(Γ, e.contents)
+            if isinstance(elem_ty, TUniverse):
+                level = self.check(Γ, Plus(Literal(1, TNat()), elem_ty.level), TNat())
+                res_ty = TUniverse(elem_ty.level+1)
+            else:
+                res_ty = TUniverse(Literal(0, TNat()))
+            res_ty.normalized = True
+            res_ty.typed = True
+            res = TList(elem_ty, res_ty)
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TMaybe):
+            subty = self.synth(Γ, e.subtype)
+            if not isinstance(subty, TUniverse):
+                raise NbEError(f"Expected maybe subtype type to be universe, got: {subty}")
+            level = self.check(Γ, Plus(Literal(1, TNat()), subty.level), TNat())
+            res_ty = TUniverse(level)
+            res = TList(elem_ty, res_ty)
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TFunction):
+            Γ2 = Γ.copy()
+            Γ2.extend(e.input, e.input)
+            body = self.synth(Γ2, e.output)
+            res = TFunction(e.input, body)
+            if not isinstance(body.type, TUniverse):
+                raise NbEError(f"Expected function output type type to be universe, got: {body.type}")
+            level = self.check(Γ, Plus(Literal(1, TNat()), body.type.level), TNat())
+            res.type = TUniverse(level)
+            res.normalized = True
+            res.typed = True
+        elif isinstance(e, TEqual):
+            raise NotImplementedError
+        elif isinstance(e, TForAll):
+            raise NotImplementedError
+        elif isinstance(e, TExists):
+            raise NotImplementedError
+        elif isinstance(e, TAbsurd):
+            raise NotImplementedError
         else:
             raise NbEError(f"Unknown Expression in synth: {e}")
         assert isinstance(res, Expr)
         assert res.normalized and res.typed
         return res
-
-
 
     ###############
     ## Check Helpers
@@ -545,15 +666,24 @@ class Normalizer():
 
     def check_lambda(self, Γ : Context, e : Lambda, τ : Type) -> Expr:
         if not (isinstance(τ, TFunction) or isinstance(τ, TForAll)):
-            raise NbEError(f"Expected function type for Lambda, got: {τ}")
+            logger.error(e)
+            logger.error(τ)
+            logger.error(Γ)
+            raise NbEError(f"Expected function type for Lambda {e}, got: {τ}")
         x = e.var
         Γ2 = Γ.copy()
         Γ2.extend(x, x)
-        b : Expr = self.check(Γ2, e.body, τ.output)
+        if isinstance(τ, TFunction):
+            b : Expr = self.check(Γ2, e.body, τ.output)
+        elif isinstance(τ, TForAll):
+            b : Expr = self.check(Γ2, e.body, τ.output)
+        else:
+            raise NbEError(f"Invalid function type: {τ}")
         res = Lambda([x], b)
-        res.type = TForAll(x, b.type)
+        res.type = τ
         res.normalized = True
         res.typed = True
+        logger.info(res)
         return res
     
     def check_list(self, Γ, e : List, τ : Type) -> Expr:
@@ -562,6 +692,26 @@ class Normalizer():
         ty_elems = τ.contents
         vs = [self.check(Γ, elem, ty_elems) for elem in e.values]
         res = List(vs, TList(ty_elems))
+        res.normalized = True
+        res.typed = True
+        return res
+
+    def check_left(self, Γ, e : Left, τ : Type) -> Expr:
+        if not isinstance(τ, TEither):
+            raise NbEError(f"Expected Eiither type for Left, got: {τ}")
+        ty = τ.left
+        r = self.check(Γ, e.e1, ty)
+        res = Left(r, τ)
+        res.normalized = True
+        res.typed = True
+        return res
+
+    def check_right(self, Γ, e : Right, τ : Type) -> Expr:
+        if not isinstance(τ, TEither):
+            raise NbEError(f"Expected Either type for Right, got: {τ}")
+        ty = τ.right
+        r = self.check(Γ, e.e1, ty)
+        res = Right(r, τ)
         res.normalized = True
         res.typed = True
 
@@ -677,6 +827,9 @@ class Normalizer():
 
     def check(self, Γ : Context, e: Expr, τ : Type) -> Expr:
         res = None
+        logger.debug(f"in check with {e}, {τ}")
+        # if 'Type' in str(type(τ)):
+        #     raise ValueError(f'cannot check Type for: {e}')
         if isinstance(e, Lambda):
             res = self.check_lambda(Γ, e, τ)
         elif isinstance(e, List):
@@ -695,14 +848,30 @@ class Normalizer():
             res = self.check_cong(Γ, e, τ)
         elif isinstance(e, Look):
             res = self.check_look(Γ, e, τ)
+        elif isinstance(e, Left):
+            res = self.check_left(Γ, e, τ)
+        elif isinstance(e, Right):
+            res = self.check_right(Γ, e, τ)
+
         else:
             e2 = self.synth(Γ, e)
+            logger.debug(e2)
+            logger.debug(e2.type)
+            logger.debug(τ)
             α = alpha_equiv(e2.type, τ)
-            if α:
+            if 'Type' in str(τ) and ('Type' not in str(e2.type)):
+                res = e2
+            elif α or is_numeric_subtype(e2.type, τ):
                 e2.type = τ
                 res = e2
             else:
                 raise NbEError(f"Encounted invalid type from synth case of check when expecting {τ}: {e2.type}")
-        assert isinstance(res, Expr)
-        assert res.normalized and res.typed
-        return res
+        try:
+            assert isinstance(res, Expr)
+            assert res.normalized and res.typed
+            return res
+        except Exception as err:
+            logger.error(format_exc())
+            logger.error(f"Error for exp type {type(res)}: {res}")
+            logger.info(f"normalized: {res.normalized}, typed: {res.typed}")
+            raise err

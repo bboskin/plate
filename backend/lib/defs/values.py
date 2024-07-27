@@ -12,7 +12,7 @@ except:
 ################################
 
 class VNothing(Value):
-    def __init__(self, _=None, type : Type = TNothing()):
+    def __init__(self, type : Type = TMaybe(Type())):
         self.type : Type = type
 
 class VNumber(Value):
